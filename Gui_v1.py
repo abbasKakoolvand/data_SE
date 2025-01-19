@@ -6,10 +6,11 @@ from PyQt6.QtWidgets import (
     QVBoxLayout,
     QWidget,
     QLineEdit,
-    QComboBox,
     QPushButton,
     QTableView,
     QMessageBox,
+    QListWidget,
+    QLabel, QListWidgetItem,
 )
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QStandardItemModel, QStandardItem
@@ -40,11 +41,16 @@ class SearchApp(QMainWindow):
         self.search_field.setPlaceholderText("Enter text to search...")
         layout.addWidget(self.search_field)
 
-        # Dropdown menu for column selection
-        self.column_dropdown = QComboBox(self)
-        self.column_dropdown.addItems(self.df.columns)  # Add all columns to the dropdown
-        self.column_dropdown.setCurrentIndex(0)  # Set default selection
-        layout.addWidget(self.column_dropdown)
+        # Label for column selection
+        layout.addWidget(QLabel("Select columns to search:"))
+
+        # List widget with checkboxes for column selection
+        self.column_list_widget = QListWidget(self)
+        for column in self.df.columns:
+            item = QListWidgetItem(column)
+            item.setCheckState(Qt.CheckState.Checked)  # Default checked
+            self.column_list_widget.addItem(item)
+        layout.addWidget(self.column_list_widget)
 
         # Search button
         self.search_button = QPushButton("Search", self)
@@ -63,17 +69,30 @@ class SearchApp(QMainWindow):
         self.setCentralWidget(container)
 
     def on_search(self):
-        # Get search text and selected column
+        # Get search text
         search_text = self.search_field.text().strip().lower()
-        selected_column = self.column_dropdown.currentText()
 
         if not search_text:
             QMessageBox.warning(self, "Error", "Please enter a search term.")
             return
 
-        # Filter the DataFrame based on the selected column and search text
+        # Get selected columns (checked items)
+        selected_columns = []
+        for index in range(self.column_list_widget.count()):
+            item = self.column_list_widget.item(index)
+            if item.checkState() == Qt.CheckState.Checked:
+                selected_columns.append(item.text())
+
+        if not selected_columns:
+            QMessageBox.warning(self, "Error", "Please select at least one column.")
+            return
+
+        # Filter the DataFrame based on the selected columns and search text
         filtered_df = self.df[
-            self.df[selected_column].astype(str).str.lower().str.contains(search_text)
+            self.df[selected_columns]
+            .astype(str)
+            .apply(lambda x: x.str.lower().str.contains(search_text))
+            .any(axis=1)
         ]
 
         if filtered_df.empty:
