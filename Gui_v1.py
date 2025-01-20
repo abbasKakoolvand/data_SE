@@ -39,33 +39,68 @@ class SearchApp(QMainWindow):
 
     def init_ui(self):
         # Main layout
+        layout_sheet_items = QVBoxLayout()
+        layout_search_items = QVBoxLayout()
+        layout_search_btn = QVBoxLayout()
+        layout_list_column = QVBoxLayout()
+        layout_list_search_aggr = QHBoxLayout()
         layout = QVBoxLayout()
-
+        spacer = QLabel("")
         # Sheet selector
+        maximum_size=200
         self.sheet_selector = QComboBox(self)
         self.sheet_selector.addItems(self.sheets)
         self.sheet_selector.currentTextChanged.connect(self.on_sheet_change)
-        layout.addWidget(QLabel("Select Sheet:"))
-        layout.addWidget(self.sheet_selector)
+        sheet_label = QLabel("Select Sheet:")
+        sheet_label.setMaximumWidth(maximum_size)
+        self.sheet_selector.setMaximumWidth(maximum_size)
+
+        layout_sheet_items.addWidget(sheet_label)
+        layout_sheet_items.addWidget(self.sheet_selector)
+        layout_sheet_items.addWidget(spacer)
+
 
         # Search field
         self.search_field = QLineEdit(self)
         self.search_field.setPlaceholderText("Enter text to search...")
-        layout.addWidget(self.search_field)
+        self.search_field.setMaximumWidth(maximum_size)
+        layout_search_items.addWidget(spacer)
+        layout_search_items.addWidget(self.search_field)
+        layout_search_items.addWidget(spacer)
 
         # Search button
         self.search_button = QPushButton("Search", self)
         self.search_button.clicked.connect(self.on_search)
-        layout.addWidget(self.search_button)
-
+        self.search_button.setMaximumWidth(maximum_size)
+        layout_search_btn.addWidget(spacer)
+        layout_search_btn.addWidget(self.search_button)
+        layout_search_btn.addWidget(spacer)
+        height = self.search_button.height()
+        sheet_label.setMaximumHeight(height)
         # Label for column selection
-        layout.addWidget(QLabel("Select columns to search:"))
+        list_column_label = QLabel("Select columns to search:")
+        list_column_label.setMaximumHeight(height)
+        list_column_label.setMaximumWidth(maximum_size)
+        layout_list_column.addWidget(list_column_label)
 
         # List widget with checkboxes for column selection
         self.column_list_widget = QListWidget(self)
+        self.column_list_widget.setMaximumHeight(int(2 * height))
+        self.column_list_widget.setMaximumWidth(maximum_size)
         self.update_column_list()
-        layout.addWidget(self.column_list_widget)
+        layout_list_search_aggr.addLayout(layout_sheet_items)
+        layout_list_search_aggr.addWidget(spacer)
+        layout_list_search_aggr.addLayout(layout_list_column)
+        layout_list_search_aggr.addWidget(spacer)
+        layout_list_search_aggr.addLayout(layout_search_items)
+        layout_list_search_aggr.addWidget(spacer)
+        layout_list_search_aggr.addLayout(layout_search_btn)
+        layout_list_search_aggr.addWidget(spacer)
+        layout_list_column.addWidget(self.column_list_widget)
 
+        for i in range(20):
+            layout_list_search_aggr.addWidget(spacer)
+        layout.addLayout(layout_list_search_aggr)
         # Table view to display results
         self.table_view = QTableView(self)
         self.model = QStandardItemModel()
