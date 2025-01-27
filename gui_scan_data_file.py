@@ -151,7 +151,19 @@ class Worker(QObject):
                     if file_path.lower().endswith(('.xlsx', '.xls')):
                         with pd.ExcelFile(file_path) as excel:
                             for sheet_name in excel.sheet_names:
-                                df = pd.read_excel(excel, sheet_name=sheet_name, nrows=0)
+                                # Read the Excel file without specifying the header
+                                df = pd.read_excel(excel, sheet_name=sheet_name, header=None, nrows=10)
+
+                                # Find the first non-null row
+                                first_non_null_index = df.first_valid_index()
+
+                                if first_non_null_index is not None:
+                                    # Set the first non-null row as the header
+                                    new_header = df.iloc[first_non_null_index]  # Get the first non-null row
+                                    df = df[1:]  # Take the data less the header row
+                                    df.columns = new_header  # Set the new header
+
+                                # Now df has the first non-null row as the columns
                                 columns = df.columns.tolist()
                                 records_added += len(columns)
                                 for col in columns:
@@ -331,9 +343,9 @@ class ModernMainWindow(QMainWindow):
         # Team logo button in bottom-left corner
         self.team_logo_button = QPushButton(self)
         self.team_logo_button.setIcon(QIcon(TEAM_LOGO_PATH))
-        self.team_logo_button.setIconSize(QSize(50, 50))  # Set logo size
+        self.team_logo_button.setIconSize(QSize(100, 100))  # Set logo size
         self.team_logo_button.setStyleSheet("border: none;")  # Remove button border
-        self.team_logo_button.setFixedSize(10, 30)  # Set button size
+        self.team_logo_button.setFixedSize(10, 55)  # Set button size
 
         self.team_logo_button.clicked.connect(self.show_about_team)
 
