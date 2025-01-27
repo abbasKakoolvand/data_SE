@@ -2,9 +2,9 @@ import os
 import time
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
                              QHBoxLayout, QLineEdit, QPushButton, QProgressBar,
-                             QLabel, QFileDialog, QMessageBox, QGroupBox, QGridLayout)
-from PyQt6.QtCore import Qt, QThread, pyqtSignal, pyqtSlot, QObject
-from PyQt6.QtGui import QIcon, QFont
+                             QLabel, QFileDialog, QMessageBox, QGroupBox, QGridLayout, QDialog)
+from PyQt6.QtCore import Qt, QThread, pyqtSignal, pyqtSlot, QObject, QSize
+from PyQt6.QtGui import QIcon, QFont, QPixmap
 import pandas as pd
 from openpyxl import Workbook
 
@@ -174,13 +174,70 @@ class Worker(QObject):
         except Exception as e:
             self.error.emit(str(e))
 
+TEAM_LOGO_PATH = "team_logo.png"  # Path to your team logo (PNG format recommended)
+APP_LOGO_PATH = "icon.png"  # Path to your team logo (PNG format recommended)
+APP_NAME = "Excel/CSV Metadata Scanner"  # Path to your team logo (PNG format recommended)
+TEAM_NAME = "SPM BI"
+TEAM_DESCRIPTION = """
+CMO
+MCI
+
+"""
+
+class AboutTeamDialog(QDialog):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("About")
+        self.setWindowIcon(QIcon(TEAM_LOGO_PATH))
+        self.setModal(True)
+        self.setFixedSize(400, 300)
+
+        layout = QVBoxLayout()
+
+        # Team Logo
+        logo_label_app = QLabel(self)
+        logo_pixmap_app = QPixmap(APP_LOGO_PATH)
+        logo_label_app.setPixmap(logo_pixmap_app.scaled(200, 200, Qt.AspectRatioMode.KeepAspectRatio))
+        logo_label_app.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(logo_label_app)
+
+        # Team Name
+        app_name_label = QLabel(f"{APP_NAME}\n")
+        app_name_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        app_name_label.setStyleSheet("font-size: 18px; font-weight: bold;")
+        layout.addWidget(app_name_label)
+
+
+
+        # Team Name
+        team_name_label = QLabel(f"A product of {TEAM_NAME} Team")
+        team_name_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        team_name_label.setStyleSheet("font-size: 18px; font-weight: bold;")
+        layout.addWidget(team_name_label)
+
+        # Team Logo
+        logo_label = QLabel(self)
+        logo_pixmap = QPixmap(TEAM_LOGO_PATH)
+        logo_label.setPixmap(logo_pixmap.scaled(200, 200, Qt.AspectRatioMode.KeepAspectRatio))
+        logo_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(logo_label)
+
+        # Team Description
+        team_description_label = QLabel(TEAM_DESCRIPTION)
+        team_description_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        team_description_label.setWordWrap(True)
+        layout.addWidget(team_description_label)
+
+
+
+        self.setLayout(layout)
 
 class ModernMainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Excel/CSV Metadata Scanner (dataSPM-CMO-MCI)")
+        self.setWindowTitle(f"{APP_NAME} (SPM BI team - CMO - MCI)")
         self.setMinimumSize(800, 500)
-        self.setWindowIcon(QIcon.fromTheme("system-search"))
+        self.setWindowIcon(QIcon("icon.ico"))
 
         # Central widget and main layout
         central_widget = QWidget()
@@ -247,10 +304,21 @@ class ModernMainWindow(QMainWindow):
         font.setBold(True)
         self.scan_button.setFont(font)
 
+
+        # Team logo button in bottom-left corner
+        self.team_logo_button = QPushButton(self)
+        self.team_logo_button.setIcon(QIcon(TEAM_LOGO_PATH))
+        self.team_logo_button.setIconSize(QSize(50, 50))  # Set logo size
+        self.team_logo_button.setStyleSheet("border: none;")  # Remove button border
+        self.team_logo_button.setFixedSize(10, 30)  # Set button size
+
+        self.team_logo_button.clicked.connect(self.show_about_team)
+
         # Assemble main layout
         main_layout.addLayout(folder_layout)
         main_layout.addWidget(progress_group)
         main_layout.addWidget(self.scan_button)
+        main_layout.addWidget(self.team_logo_button, alignment=Qt.AlignmentFlag.AlignRight)
 
         # Connections
         self.browse_button.clicked.connect(self.browse_folder)
@@ -270,7 +338,10 @@ class ModernMainWindow(QMainWindow):
         folder = QFileDialog.getExistingDirectory(self, "Select Folder")
         if folder:
             self.folder_input.setText(folder)
-
+    def show_about_team(self):
+        """Show the About Team dialog."""
+        dialog = AboutTeamDialog(self)
+        dialog.exec()
     def start_scanning(self):
         if not self.folder_input.text():
             QMessageBox.warning(self, "Warning", "Please select a folder first!")
@@ -288,6 +359,7 @@ class ModernMainWindow(QMainWindow):
             return  # User canceled
 
         self.scan_button.setEnabled(False)
+        self.browse_button.setEnabled(False)
         self.thread = QThread()
         self.worker = Worker(self.folder_input.text(), output_path)
         self.worker.moveToThread(self.thread)
@@ -295,12 +367,17 @@ class ModernMainWindow(QMainWindow):
         self.thread.started.connect(self.worker.run)
         self.worker.finished.connect(self.thread.quit)
         self.worker.finished.connect(self.worker.deleteLater)
+        self.worker.finished.connect(self.state_change)
         self.thread.finished.connect(self.thread.deleteLater)
         self.worker.progress.connect(self.update_progress)
         self.worker.error.connect(self.show_error)
 
         self.thread.start()
 
+    def state_change(self):
+        self.progress_bar.setFormat(f"100% - Process finished.")
+        self.browse_button.setEnabled(True)
+        self.scan_button.setEnabled(True)
     @pyqtSlot(int, int, float, float, float, float, int)
     def update_progress(self, current, total, processed_size, remaining_size,
                         elapsed, remaining_time, total_records):
