@@ -11,7 +11,7 @@ from openpyxl import Workbook
 STYLE_SHEET = """
 QMainWindow {
     background-color: #2D2D2D;
-    color: #FFFFFF;
+    color: #FFFFFF;  /* Light font color */
 }
 
 QGroupBox {
@@ -19,13 +19,14 @@ QGroupBox {
     border-radius: 5px;
     margin-top: 10px;
     padding-top: 15px;
+    color: #FFFFFF;  /* Light font color */
 }
 
 QGroupBox::title {
     subcontrol-origin: margin;
     left: 10px;
     padding: 0 3px;
-    color: #88B0FF;
+    color: #88B0FF;  /* Light accent color */
 }
 
 QLineEdit {
@@ -34,6 +35,7 @@ QLineEdit {
     border-radius: 3px;
     padding: 5px;
     font-size: 12px;
+    color: #FFFFFF;  /* Light font color */
 }
 
 QPushButton {
@@ -42,6 +44,7 @@ QPushButton {
     border-radius: 3px;
     padding: 5px 10px;
     min-width: 80px;
+    color: #FFFFFF;  /* Light font color */
 }
 
 QPushButton:hover {
@@ -57,7 +60,7 @@ QProgressBar {
     border-radius: 3px;
     text-align: center;
     background-color: #404040;
-    color: white;
+    color: white;  /* Light font color */
 }
 
 QProgressBar::chunk {
@@ -67,6 +70,26 @@ QProgressBar::chunk {
 
 QLabel {
     font-size: 12px;
+    color: #FFFFFF;  /* Light font color */
+}
+
+QDialog {
+    background-color: #2D2D2D;
+    color: #FFFFFF;  /* Light font color */
+}
+
+QMessageBox {
+    background-color: #2D2D2D;
+    color: #FFFFFF;  /* Light font color */
+}
+
+QMessageBox QLabel {
+    color: #FFFFFF;  /* Light font color */
+}
+
+QMessageBox QPushButton {
+    background-color: #404040;
+    color: #FFFFFF;  /* Light font color */
 }
 """
 
@@ -179,7 +202,7 @@ APP_LOGO_PATH = "icon.png"  # Path to your team logo (PNG format recommended)
 APP_NAME = "Excel/CSV Metadata Scanner"  # Path to your team logo (PNG format recommended)
 TEAM_NAME = "SPM BI"
 TEAM_DESCRIPTION = """
-CMO
+CSO
 MCI
 
 """
@@ -235,7 +258,7 @@ class AboutTeamDialog(QDialog):
 class ModernMainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle(f"{APP_NAME} (SPM BI team - CMO - MCI)")
+        self.setWindowTitle(f"{APP_NAME} (SPM BI team - CSO - MCI)")
         self.setMinimumSize(800, 500)
         self.setWindowIcon(QIcon("icon.ico"))
 
