@@ -209,6 +209,7 @@ class Worker(QObject):
         except Exception as e:
             self.error.emit(str(e))
 
+
 TEAM_LOGO_PATH = "team_logo.png"  # Path to your team logo (PNG format recommended)
 APP_LOGO_PATH = "icon.png"  # Path to your team logo (PNG format recommended)
 APP_NAME = "Excel/CSV Metadata Scanner"  # Path to your team logo (PNG format recommended)
@@ -219,13 +220,17 @@ MCI
 
 """
 
+
 class AboutTeamDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("About")
         self.setWindowIcon(QIcon(TEAM_LOGO_PATH))
         self.setModal(True)
-        self.setFixedSize(400, 300)
+        self.setMaximumHeight(400)
+        self.setMaximumHeight(400)
+        self.setMaximumWidth(300)
+        self.setMinimumWidth(300)
 
         layout = QVBoxLayout()
 
@@ -241,8 +246,6 @@ class AboutTeamDialog(QDialog):
         app_name_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         app_name_label.setStyleSheet("font-size: 18px; font-weight: bold;")
         layout.addWidget(app_name_label)
-
-
 
         # Team Name
         team_name_label = QLabel(f"A product of {TEAM_NAME} Team")
@@ -263,9 +266,12 @@ class AboutTeamDialog(QDialog):
         team_description_label.setWordWrap(True)
         layout.addWidget(team_description_label)
 
-
-
         self.setLayout(layout)
+
+    def mouseMoveEvent(self, event):
+        # Override to do nothing on mouse move
+        pass
+
 
 class ModernMainWindow(QMainWindow):
     def __init__(self):
@@ -339,7 +345,6 @@ class ModernMainWindow(QMainWindow):
         font.setBold(True)
         self.scan_button.setFont(font)
 
-
         # Team logo button in bottom-left corner
         self.team_logo_button = QPushButton(self)
         self.team_logo_button.setIcon(QIcon(TEAM_LOGO_PATH))
@@ -373,10 +378,12 @@ class ModernMainWindow(QMainWindow):
         folder = QFileDialog.getExistingDirectory(self, "Select Folder")
         if folder:
             self.folder_input.setText(folder)
+
     def show_about_team(self):
         """Show the About Team dialog."""
         dialog = AboutTeamDialog(self)
         dialog.exec()
+
     def start_scanning(self):
         if not self.folder_input.text():
             QMessageBox.warning(self, "Warning", "Please select a folder first!")
@@ -413,6 +420,7 @@ class ModernMainWindow(QMainWindow):
         self.progress_bar.setFormat(f"100% - Process finished.")
         self.browse_button.setEnabled(True)
         self.scan_button.setEnabled(True)
+
     @pyqtSlot(int, int, float, float, float, float, int)
     def update_progress(self, current, total, processed_size, remaining_size,
                         elapsed, remaining_time, total_records):
