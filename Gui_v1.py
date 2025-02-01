@@ -1,5 +1,8 @@
 import os
+import re
 import sys
+
+import nltk
 import pandas as pd
 from PyQt6.QtWidgets import (
     QApplication,
@@ -15,10 +18,21 @@ from PyQt6.QtWidgets import (
     QComboBox,
     QHBoxLayout,
     QListWidgetItem,
-    QGroupBox,
+    QGroupBox, QCompleter,
 )
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, QStringListModel
 from PyQt6.QtGui import QStandardItemModel, QStandardItem, QColor
+from nltk.tokenize import word_tokenize
+from nltk.corpus import stopwords
+import string
+
+nltk_data_dir = os.path.join(os.getcwd(), 'files/nltk_data')
+nltk.data.path.append(nltk_data_dir)
+
+
+def are_all_signs(word):
+    # Check if the word contains only non-alphanumeric characters
+    return bool(re.fullmatch(r'[^a-zA-Z0-9]+', word))
 
 
 class SearchApp(QMainWindow):
@@ -26,6 +40,7 @@ class SearchApp(QMainWindow):
         super().__init__()
 
         # Window setup
+        self.word_list = None
         self.search_text = None
         self.schema_column_name = None
         self.setWindowTitle("Excel Search Tool")
@@ -41,6 +56,7 @@ class SearchApp(QMainWindow):
         self.init_ui()
 
     def init_ui(self):
+        self.scan_text_of_df()
         # Main layout
         layout = QVBoxLayout()
 
@@ -72,6 +88,12 @@ class SearchApp(QMainWindow):
         self.search_field = QLineEdit(self)
         self.search_field.setPlaceholderText("Enter text to search...")
         self.search_field.setMaximumWidth(maximum_size)
+        self.completer = QCompleter()
+        self.completer.setCaseSensitivity(Qt.CaseSensitivity.CaseInsensitive)
+        self.completer.setCompletionMode(QCompleter.CompletionMode.UnfilteredPopupCompletion)
+
+        self.search_field.textChanged.connect(lambda text: self.suggest_words(text, self.search_field, self.completer))
+
         layout_search_items.addWidget(self.search_field)
 
         self.search_field.returnPressed.connect(self.on_search)
@@ -92,7 +114,6 @@ class SearchApp(QMainWindow):
         layout_list_search_aggr.addWidget(QLabel(""))
         layout_list_search_aggr.addWidget(QLabel(""))
 
-
         # Label for column selection
         list_column_label = QLabel("Selected columns to search:")
         list_column_label.setMaximumHeight(10)
@@ -110,11 +131,6 @@ class SearchApp(QMainWindow):
         layout_list_column.addWidget(self.column_list_widget)
         # list_column_spacer = QLabel("")
         # layout_list_column.addWidget(list_column_spacer)
-
-
-
-
-
 
         self.schema_column_label = QLabel("Select schema to filter:")
         self.schema_column_label.setMaximumHeight(10)
@@ -141,8 +157,6 @@ class SearchApp(QMainWindow):
         # Add the group box to the main layout
         layout.addWidget(group_box)
         layout.addWidget(self.result_group_box)
-
-
 
         # Table view to display results
         self.table_view = QTableView(self)
@@ -230,8 +244,10 @@ class SearchApp(QMainWindow):
             self.filter_combo_box.addItem(f"All Items ({len(filtered_df)})")
             unique_values = filtered_df[
                 self.schema_column_name].unique()  # Get unique values from the first schema column
-            self.unique_scema_values=unique_values
-            self.filter_combo_box.addItems([f"{str(value)} ({len(filtered_df[filtered_df[self.schema_column_name].astype(str) == str(value)])})" for value in unique_values])
+            self.unique_scema_values = unique_values
+            self.filter_combo_box.addItems(
+                [f"{str(value)} ({len(filtered_df[filtered_df[self.schema_column_name].astype(str) == str(value)])})"
+                 for value in unique_values])
             self.schema_column_label.show()
             self.filter_combo_box.show()  # Show the combo box
         else:
@@ -263,7 +279,9 @@ class SearchApp(QMainWindow):
                 else:
 
                     # Filter the DataFrame based on the selected value
-                    filtered_schema_df = filtered_df_search[filtered_df_search[self.schema_column_name].astype(str) == self.unique_scema_values[selected_index-1]]
+                    filtered_schema_df = filtered_df_search[
+                        filtered_df_search[self.schema_column_name].astype(str) == self.unique_scema_values[
+                            selected_index - 1]]
                 self.model.clear()
                 for _, row in filtered_schema_df.iterrows():
                     items = []
@@ -298,6 +316,70 @@ class SearchApp(QMainWindow):
             current_width = self.table_view.columnWidth(column)
             # Set the column width to the maximum of 200 and the content width
             self.table_view.setColumnWidth(column, min(200, current_width))
+
+    def scan_text_of_df(self):
+
+        # Convert each row to a string with values joined by a space
+        row_strings = self.df.apply(lambda row: ' '.join(row.values.astype(str)), axis=1)
+
+        # Join all row strings with a newline character
+        final_text = '\n'.join(row_strings)
+
+        word_frequencies = {}
+
+        text = final_text.replace("&", "ANDAND")
+
+        text = text.replace("/", " ")
+        text = text.replace("'", " ")
+        text = text.replace("+", " ")
+        text = text.replace(".", " ")
+        text = text.replace("_", " ")
+
+        # Tokenize text
+        tokens = word_tokenize(text)
+        tokens = [token.replace("ANDAND", "&") if token.__contains__("ANDAND") else token for token in tokens]
+
+        try:
+            tokens.remove("ANDAND")
+        except:
+            pass
+        # tokens = word_tokenize(text_slide)
+
+        # Get stopwords and punctuation
+        stop_words = set(stopwords.words('english'))
+        punctuation = set(string.punctuation)
+        for token in tokens:
+            if len(token) < 2:
+                continue
+            if are_all_signs(token):
+                # print(token)
+                continue
+
+            # Skip stopwords and punctuation
+            if token.lower() in stop_words and (token.islower() or token.istitle()) or (token in punctuation):
+                continue
+                # Convert to lower case
+
+            if token not in word_frequencies:
+                word_frequencies[token] = 1
+            else:
+                word_frequencies[token] += 1
+        self.word_list = word_frequencies.keys()
+
+    def suggest_words(self, text, search_field, completer):
+        # if len(text) > 1:
+        if True:
+            try:
+                words = self.get_word_suggestions(text)
+                suggestions = sorted(words, key=len)
+                completer.setModel(QStringListModel(suggestions))
+                self.search_field.setCompleter(completer)
+            except Exception as e5:
+                print(e5)
+
+    def get_word_suggestions(self, prefix):
+        # Replace this with your actual word list
+        return [word for word in self.word_list if str(prefix).lower() in str(word).lower()]
 
 
 # Run the application
