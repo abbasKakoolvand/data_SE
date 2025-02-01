@@ -247,7 +247,6 @@ class SearchApp(QMainWindow):
             """Filter the displayed results based on the selected value in the combo box."""
             selected_value = self.filter_combo_box.currentText()
             selected_index = self.filter_combo_box.currentIndex()
-            print(selected_value,selected_index)
             if selected_value:
                 filtered_df_search = self.df[
                     self.df[self.selected_columns]
