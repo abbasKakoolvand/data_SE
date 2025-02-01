@@ -74,6 +74,8 @@ class SearchApp(QMainWindow):
         self.search_field.setMaximumWidth(maximum_size)
         layout_search_items.addWidget(self.search_field)
 
+        self.search_field.returnPressed.connect(self.on_search)
+
         # Search button
         self.search_button = QPushButton("Search", self)
         self.search_button.clicked.connect(self.on_search)
