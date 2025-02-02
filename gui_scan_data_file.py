@@ -153,7 +153,7 @@ class Worker(QObject):
                             for sheet_name in excel.sheet_names:
                                 # Read the Excel file without specifying the header
                                 df = pd.read_excel(excel, sheet_name=sheet_name, header=None, nrows=10)
-
+                                print([col for col in df.columns.tolist()])
                                 # Find the first non-null row
                                 first_non_null_index = df.first_valid_index()
 
