@@ -1,9 +1,12 @@
 import pandas as pd
+
 # Path to the input Excel file
 input_file = "s50.xlsx"
 sheet_name = "main"  # Name of the sheet containing the tables
 # Read the Excel file
 df = pd.read_excel(input_file, sheet_name=sheet_name, header=None)
+
+
 # Function to split tables, clean them, and merge single-row tables
 def split_and_merge_tables(dataframe):
     tables = []
@@ -37,6 +40,8 @@ def split_and_merge_tables(dataframe):
             merged_tables.append(tables[i])
             i += 1
     return merged_tables
+
+
 # Split the data into individual tables, clean them, and merge single-row tables
 tables = split_and_merge_tables(df)
 # Save each table into a separate sheet in a new Excel file
