@@ -1,17 +1,19 @@
 import os
 import re
+import string
 import sys
 
 import nltk
 import pandas as pd
+import pyodbc
+from PyQt6.QtCore import Qt, QStringListModel
+from PyQt6.QtGui import QColor
 from PyQt6.QtWidgets import (
     QApplication,
     QMainWindow,
-    QVBoxLayout,
     QWidget,
     QLineEdit,
     QPushButton,
-    QTableView,
     QMessageBox,
     QListWidget,
     QLabel,
@@ -20,19 +22,155 @@ from PyQt6.QtWidgets import (
     QListWidgetItem,
     QGroupBox, QCompleter,
 )
-from PyQt6.QtCore import Qt, QStringListModel
-from PyQt6.QtGui import QStandardItemModel, QStandardItem, QColor
-from nltk.tokenize import word_tokenize
 from nltk.corpus import stopwords
-import string
+from nltk.tokenize import word_tokenize
 
 nltk_data_dir = os.path.join(os.getcwd(), 'files/nltk_data')
 nltk.data.path.append(nltk_data_dir)
+import json
+
+
+# Function to read database configuration from a JSON file
+def read_db_config(file_path):
+    with open(file_path, 'r') as file:
+        config = json.load(file)
+    return config
+
+
+script_dir = os.getcwd()
+
+# Specify the path to your JSON file
+config_file_path = 'files/sql_config.json'
+
+path = os.path.join(script_dir, config_file_path)
+
+# Read the configuration
+db_config = read_db_config(path)
+
+# Extract the parameters
+server = db_config['server']
+username = db_config['username']
+password = db_config['password']
 
 
 def are_all_signs(word):
     # Check if the word contains only non-alphanumeric characters
     return bool(re.fullmatch(r'[^a-zA-Z0-9]+', word))
+
+
+from PyQt6.QtWidgets import QDialog, QVBoxLayout, QTableView
+from PyQt6.QtGui import QStandardItemModel, QStandardItem
+
+import pandas as pd
+
+
+def get_last_10_rows(database_name, table_schema, table_name, connection):
+    try:
+        # Create a cursor from the connection
+        cursor = connection.cursor()
+
+        # Define the SQL query
+        query = f"""
+        SELECT TOP 20 *
+        FROM {database_name}.{table_schema}.{table_name}
+        """
+
+        # Execute the query
+        cursor.execute(query)
+
+        # Fetch the results
+        rows = cursor.fetchall()
+
+        # Get column names from the cursor
+        column_names = [column[0] for column in cursor.description]
+
+        # Close the cursor
+        cursor.close()
+
+    except Exception as e:
+        print(f"An error occurred: {e}")
+
+        # Create a cursor from the connection
+        cursor = connection.cursor()
+
+        # Define the fallback SQL query
+        query = f"""
+                SELECT TOP 20 *
+                FROM test_SE.myscema.testTable
+                """
+
+        # Execute the fallback query
+        cursor.execute(query)
+
+        # Fetch the results
+        rows = cursor.fetchall()
+
+        # Get column names from the cursor
+        column_names = [column[0] for column in cursor.description]
+
+        print(rows)
+
+        # Close the cursor
+        cursor.close()
+
+    return rows, column_names
+
+
+class RowDetailDialog(QDialog):
+    def __init__(self, row_data, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Table sample detail")
+        # self.setGeometry(150, 150, 400, 300)
+        # Create a connection string
+        database = row_data["DataBaseName"]
+        connection_string = f"DRIVER={{SQL Server}};SERVER={server};DATABASE={database};UID={username};PWD={password}"
+        print(connection_string)
+        # Establish a connection
+        try:
+            connection = pyodbc.connect(connection_string, timeout=1)
+        except:
+            connection_string = f"DRIVER={{SQL Server}};SERVER=Desktop1312;DATABASE=test_SE;UID=sa;PWD=ario.1377"
+            connection = pyodbc.connect(connection_string, timeout=1)
+
+        last_10_rows, column_names = get_last_10_rows(database, row_data["TableSchema"], row_data["TableName"],
+                                                      connection)
+        # Create a layout for the dialog
+        layout = QVBoxLayout()
+
+        # Create a table view to display the row data
+        self.table_view = QTableView(self)
+        self.model = QStandardItemModel(0, len(column_names))  # 5 rows, number of columns based on row_data
+        self.model.setHorizontalHeaderLabels(column_names)  # Set headers to the keys of the row data
+
+        # Fill the model with row data
+        for row in last_10_rows:
+            if any(item is not None for item in row):  # Adjust this condition as needed
+                items = [QStandardItem(str(item) if item is not None else '') for item in
+                         row]  # Convert None to empty string
+                self.model.appendRow(items)
+
+        self.table_view.setModel(self.model)
+
+        # Resize columns to fit content
+        total_width = 0
+        for col in range(self.model.columnCount()):
+            self.table_view.resizeColumnToContents(col)
+            current_width = self.table_view.columnWidth(col)
+            # Set the column width to the maximum of 200 and the content width
+            self.table_view.setColumnWidth(col, min(200, current_width))
+            current_width = self.table_view.columnWidth(col)
+            total_width = total_width + current_width
+        # self.setGeometry(150, 150, total_width + 100, 300)
+        self.setMinimumWidth(min(total_width + 100, 1000))
+        self.setMaximumWidth(min(total_width + 100, 1000))
+
+        print(total_width + 100)
+        # Add the table view to the layout
+        layout.addWidget(self.table_view)
+        self.setLayout(layout)
+
+        # Adjust the dialog size to fit the content
+        # self.adjustSize()  # Adjust the size of the dialog to fit its contents
 
 
 class SearchApp(QMainWindow):
@@ -164,6 +302,8 @@ class SearchApp(QMainWindow):
         self.table_view.setModel(self.model)
         layout.addWidget(self.table_view)
 
+        self.table_view.clicked.connect(self.on_row_click)
+
         # Display all rows initially
         self.display_all_rows()
 
@@ -171,6 +311,17 @@ class SearchApp(QMainWindow):
         container = QWidget()
         container.setLayout(layout)
         self.setCentralWidget(container)
+
+    def on_row_click(self, index):
+        """Handle row click in the table view."""
+        if index.isValid():  # Check if the index is valid
+            row_data = {}
+            for col in range(self.model.columnCount()):
+                row_data[self.model.horizontalHeaderItem(col).text()] = self.model.item(index.row(), col).text()
+
+            # Create and show the dialog with the selected row's data
+            dialog = RowDetailDialog(row_data, self)
+            dialog.exec()
 
     def update_column_list(self):
         """Update the column list widget based on the current sheet's columns."""
