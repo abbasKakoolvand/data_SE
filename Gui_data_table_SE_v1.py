@@ -317,8 +317,8 @@ class SearchApp(QMainWindow):
         if index.isValid():  # Check if the index is valid
             row_data = {}
             for col in range(self.model.columnCount()):
-                row_data[self.model.horizontalHeaderItem(col).text()] = self.model.item(index.row(), col).text()
-
+                row_data[self.df.columns[col]] = self.model.item(index.row(), col).text()
+            print(row_data)
             # Create and show the dialog with the selected row's data
             dialog = RowDetailDialog(row_data, self)
             dialog.exec()
@@ -538,7 +538,7 @@ if __name__ == "__main__":
     app = QApplication(sys.argv)
     try:
         script_dir = os.path.dirname(__file__)
-        style_dir = os.path.join(script_dir, "files/MacOS.qss")
+        style_dir = r"files/MacOS.qss"
         with open(style_dir, "r") as file:
             app.setStyleSheet(file.read())
     except Exception as e:
