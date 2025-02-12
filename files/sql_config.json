@@ -1,0 +1,6 @@
+{
+    "server": "your_server_name",
+    "username": "your_username",
+    "password": "your_password",
+    "connection_string": "DRIVER={ODBC Driver 17 for SQL Server};SERVER=10.19.132.129;DATABASE=db_my_custom;Trusted_Connection=Yes"
+}

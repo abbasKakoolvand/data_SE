@@ -51,6 +51,7 @@ db_config = read_db_config(path)
 server = db_config['server']
 username = db_config['username']
 password = db_config['password']
+connection_string_file = db_config['connection_string']
 
 
 def are_all_signs(word):
@@ -123,7 +124,8 @@ class RowDetailDialog(QDialog):
         # self.setGeometry(150, 150, 400, 300)
         # Create a connection string
         database = row_data["DataBaseName"]
-        connection_string = f"DRIVER={{SQL Server}};SERVER={server};DATABASE={database};UID={username};PWD={password}"
+        # connection_string = f"DRIVER={{SQL Server}};SERVER={server};DATABASE={database};UID={username};PWD={password}"
+        connection_string = connection_string_file.replace("db_my_custom", database)
         print(connection_string)
         # Establish a connection
         try:
