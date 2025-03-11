@@ -170,3 +170,4 @@ cython_debug/
 # PyPI configuration file
 .pypirc
 /warehouse SE/
+/files/nltk_data/
