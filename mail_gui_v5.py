@@ -1,3 +1,4 @@
+import random
 import sys
 import os
 import json
@@ -8,10 +9,10 @@ import requests
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QLabel, QLineEdit, QPushButton, QTextEdit, QListWidget,
-    QMessageBox, QFileDialog, QStackedWidget, QSystemTrayIcon, QMenu, QInputDialog
+    QMessageBox, QFileDialog, QStackedWidget, QSystemTrayIcon, QMenu, QInputDialog, QDialog
 )
-from PyQt6.QtCore import pyqtSignal, QTimer, QDate
-from PyQt6.QtGui import QAction, QIcon
+from PyQt6.QtCore import pyqtSignal, QTimer, QDate, Qt
+from PyQt6.QtGui import QAction, QIcon, QPixmap
 from exchangelib import Credentials, Account, DELEGATE, Configuration, Message, Mailbox, FileAttachment
 from exchangelib.errors import UnauthorizedError
 import hashlib
@@ -30,12 +31,13 @@ cipher = Fernet(cipher_key)
 
 
 class TrayIcon(QSystemTrayIcon):
-    global account, logged_in
+    global account, logged_in, about_page_is_open
     print(f"account:{account}, logged_in:{logged_in}")
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setIcon(QIcon("icon.png"))
+        self.dialog = None
+        self.setIcon(QIcon("mci_mail.png"))
         self.setVisible(True)
         self.email_client = None  # Don't initialize here
         # Create menu
@@ -76,10 +78,36 @@ class TrayIcon(QSystemTrayIcon):
         inbox_action.triggered.connect(self.show_inbox)
         self.menu.addAction(inbox_action)
 
+        # About
+        exit_action = QAction("About", self)
+        exit_action.triggered.connect(self.show_about_dialog)
+        self.menu.addAction(exit_action)
+
         # Exit
         exit_action = QAction("Exit", self)
-        exit_action.triggered.connect(sys.exit)
+        exit_action.triggered.connect(self.exit_app)
         self.menu.addAction(exit_action)
+
+    def exit_app(self):
+        try:
+            sys.exit(0)
+        except Exception as e:
+            print(e)
+        try:
+            os._exit(0)
+        except Exception as e:
+            print(e)
+
+    def show_about_dialog(self):
+        global about_page_is_open
+        if not about_page_is_open:
+            self.dialog = AboutTeamDialog()  # Keep reference
+            self.dialog.show()
+        else:
+            # Bring existing dialog to front
+            self.dialog.activateWindow()
+            self.dialog.raise_()
+            self.dialog.setFocus()
 
     def load_config_settings(self):
         try:
@@ -92,6 +120,9 @@ class TrayIcon(QSystemTrayIcon):
             self.retry_interval = 8 * 3600 * 1000
 
     def set_schedule_time(self):
+        if hasattr(self, "dialog") and (not self.dialog == None):
+            if self.dialog.isVisible():
+                self.dialog.close()
         try:
             print("Opening dialog for schedule hour...")
             hour, ok = QInputDialog.getInt(None, "Set Schedule Hour",
@@ -112,6 +143,9 @@ class TrayIcon(QSystemTrayIcon):
             print(f"Error in set_schedule_time: {e}")
 
     def set_retry_time(self):
+        if hasattr(self, "dialog") and (not self.dialog == None):
+            if self.dialog.isVisible():
+                self.dialog.close()
         hours, ok = QInputDialog.getInt(None, "Set Retry Time",
                                         "Enter retry interval (hours):",
                                         self.retry_interval // 3600000, 1, 24)
@@ -133,6 +167,9 @@ class TrayIcon(QSystemTrayIcon):
             print(f"Error updating config: {e}")
 
     def process_mail(self):
+        if hasattr(self, "dialog") and (not self.dialog == None):
+            if self.dialog.isVisible():
+                self.dialog.close()
         global account, logged_in
         print(f"account:{account}, logged_in:{logged_in}")
         if not account or not logged_in:
@@ -152,11 +189,17 @@ class TrayIcon(QSystemTrayIcon):
             print(f"Error processing mail: {e}")
 
     def show_login_window(self):
+        if hasattr(self, "dialog") and (not self.dialog == None):
+            if self.dialog.isVisible():
+                self.dialog.close()
         self.login_window = LoginWindow(self)
         self.login_window.login_success.connect(self.on_login_success)
         self.login_window.show()
 
     def show_composer(self):
+        if hasattr(self, "dialog") and (not self.dialog == None):
+            if self.dialog.isVisible():
+                self.dialog.close()
         global account, logged_in
         print(f"account:{account}, logged_in:{logged_in}")
         if not account or not logged_in:
@@ -166,6 +209,9 @@ class TrayIcon(QSystemTrayIcon):
         self.composer.show()
 
     def show_inbox(self):
+        if hasattr(self, "dialog") and (not self.dialog == None):
+            if self.dialog.isVisible():
+                self.dialog.close()
         global account, logged_in
         print(f"account:{account}, logged_in:{logged_in}")
         if not account or not logged_in:
@@ -191,7 +237,8 @@ class LoginWindow(QMainWindow):
     def __init__(self, tray_icon):
         super().__init__()
         self.tray_icon = tray_icon
-        self.setWindowTitle("Login")
+        self.setWindowTitle(f"{APP_NAME} - Login")
+        self.setWindowIcon(QIcon(APP_LOGO_PATH))
         self.setGeometry(100, 100, 400, 250)
         self.otp_required = False
         self.retry_timer = QTimer()
@@ -337,6 +384,84 @@ class LoginWindow(QMainWindow):
         self.retry_timer.start(self.tray_icon.retry_interval)
 
 
+TEAM_LOGO_PATH = "team_logo.png"  # Path to your team logo (PNG format recommended)
+APP_LOGO_PATH = "mci_mail.png"  # Path to your team logo (PNG format recommended)
+APP_NAME = "MCI Mail Attachment Aggregator"
+TEAM_NAME = "SPM BI"
+TEAM_DESCRIPTION = """
+CSO
+MCI
+
+"""
+about_page_is_open = False
+
+
+class AboutTeamDialog(QDialog):
+    global about_page_is_open
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle(f"{APP_NAME} - About")
+        self.setWindowIcon(QIcon(APP_LOGO_PATH))  # Use app logo
+        self.setModal(True)
+        self.setMaximumHeight(400)
+        self.setMaximumHeight(400)
+        self.setMaximumWidth(350)
+        self.setMinimumWidth(350)
+
+        layout = QVBoxLayout()
+
+        # Team Logo
+        logo_label_app = QLabel(self)
+        logo_pixmap_app = QPixmap(APP_LOGO_PATH)
+        logo_label_app.setPixmap(logo_pixmap_app.scaled(200, 200, Qt.AspectRatioMode.KeepAspectRatio))
+        logo_label_app.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(logo_label_app)
+
+        # Team Name
+        app_name_label = QLabel(f"{APP_NAME}\n")
+        app_name_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        app_name_label.setStyleSheet("font-size: 18px; font-weight: bold;")
+        layout.addWidget(app_name_label)
+
+        # Team Name
+        team_name_label = QLabel(f"A product of {TEAM_NAME} Team")
+        team_name_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        team_name_label.setStyleSheet("font-size: 18px; font-weight: bold;")
+        layout.addWidget(team_name_label)
+
+        # Team Logo
+        logo_label = QLabel(self)
+        logo_pixmap = QPixmap(TEAM_LOGO_PATH)
+        logo_label.setPixmap(logo_pixmap.scaled(200, 200, Qt.AspectRatioMode.KeepAspectRatio))
+        logo_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(logo_label)
+
+        # Team Description
+        team_description_label = QLabel(TEAM_DESCRIPTION)
+        team_description_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        team_description_label.setWordWrap(True)
+        layout.addWidget(team_description_label)
+
+        self.setLayout(layout)
+
+    def showEvent(self, event):
+        global about_page_is_open
+        """Set flag to True when the dialog is shown."""
+        about_page_is_open = True
+        super().showEvent(event)
+
+    def closeEvent(self, event):
+        global about_page_is_open
+        """Set flag to False when the dialog is closed."""
+        about_page_is_open = False
+        super().closeEvent(event)
+
+    def mouseMoveEvent(self, event):
+        # Override to do nothing on mouse move
+        pass
+
+
 class EmailClientHandler:
     def __init__(self, tray_icon):
         self.tray_icon = tray_icon
@@ -349,7 +474,7 @@ class EmailClientHandler:
         self.last_daily_run = None
         self.daily_timer = QTimer()
         self.daily_timer.timeout.connect(self.check_daily_task)
-        self.daily_timer.start(30 * 60 * 1000)
+        self.daily_timer.start(random.randint(50, 55) * 60 * 1000)
         self.start_time = None  # Track when processing starts
         self.total_emails = 0  # Track total emails in the current run
 
@@ -360,10 +485,35 @@ class EmailClientHandler:
             time.sleep(60)
             self.upload_attachments()
 
+    def is_account_valid(self):
+        global account, logged_in
+        try:
+            if not account or not logged_in:
+                return False
+            account.root.refresh()  # Validate connection
+            return True
+        except Exception:
+            return False
+
+    def handle_reauthentication(self):
+        try:
+            # Try re-login with stored credentials
+            self.tray_icon.login_window.load_encrypted_credentials()
+            self.tray_icon.login_window.attempt_basic_login()
+        except Exception as e:
+            self.tray_icon.showMessage(
+                "Re-authentication Failed",
+                f"Stored credentials invalid. Please check error.{e}",
+                QSystemTrayIcon.MessageIcon.Critical
+            )
+
     def check_daily_task(self):
         global account, logged_in
         now = datetime.now()
         current_date = QDate.currentDate()
+        if not self.is_account_valid():
+            self.handle_reauthentication()
+            return
         if self.last_daily_run == current_date:
             return
         if now.hour == self.tray_icon.schedule_hour and 0 <= now.minute < 60:
@@ -512,7 +662,7 @@ class EmailClientHandler:
         if type_process == "Save Attachment":
             count = self.total_emails
         else:
-            count = self.total_Attachments
+            count = self.total_attachments_saved
         log_entry = (
             f"{type_process} - {self.start_time.strftime('%Y-%m-%d %H:%M:%S')} - "
             f"Processed {count} (emails/files)"
@@ -656,6 +806,8 @@ class ProgressDialog(QDialog):
     def update_upload_progress(self, uploaded):
         self.progress_bar.setValue(uploaded)
         self.uploaded_label.setText(f"Files uploaded: {uploaded}/{self.progress_bar.maximum()}")
+
+
 class InboxViewer(QMainWindow):
     global account, logged_in
 
@@ -747,13 +899,12 @@ def clear_directory_contents(target_dir):
             print(f"Deleted directory: {root}")
 
 
-# Example usage:
-clear_directory_contents("/path/to/your/directory")
 if __name__ == "__main__":
     print(f"account:{account}, logged_in:{logged_in}")
 
     # Initialize the application
     app = QApplication(sys.argv)
+    app.setWindowIcon(QIcon(APP_LOGO_PATH))
 
     # Check if system tray is available
     if not QSystemTrayIcon.isSystemTrayAvailable():
@@ -783,3 +934,4 @@ if __name__ == "__main__":
         except Exception as e:
             print(f"Critical error: {e}")
             tray.showMessage("Critical Error", str(e), QSystemTrayIcon.MessageIcon.Critical)
+# pyinstaller --windowed --icon=mci_mail.ico --name "MCI Mail Attachment Aggregator" --add-data "mci_mail.png;." --add-data "team_logo.png;." mail_gui_v5.py
