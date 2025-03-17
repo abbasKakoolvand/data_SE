@@ -463,6 +463,7 @@ class AboutTeamDialog(QDialog):
 
 
 class EmailClientHandler:
+    global account, logged_in
     def __init__(self, tray_icon):
         self.tray_icon = tray_icon
         self.progress_dialog = None  # Progress dialog instance
@@ -477,6 +478,9 @@ class EmailClientHandler:
         self.daily_timer.start(random.randint(50, 55) * 60 * 1000)
         self.start_time = None  # Track when processing starts
         self.total_emails = 0  # Track total emails in the current run
+        self.session_check_timer = QTimer()
+        self.session_check_timer.timeout.connect(self.is_account_valid)
+        self.session_check_timer.start(3600000)  # Check every hour
 
     def process_initial_run(self):
         global account
@@ -513,7 +517,7 @@ class EmailClientHandler:
         global account, logged_in
         now = datetime.now()
         current_date = QDate.currentDate()
-
+        self.is_account_valid()
         if now.hour == self.tray_icon.schedule_hour and 0 <= now.minute < 60:
             if not self.is_account_valid():
                 self.handle_reauthentication()
