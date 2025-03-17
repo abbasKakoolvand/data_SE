@@ -498,8 +498,10 @@ class EmailClientHandler:
     def handle_reauthentication(self):
         try:
             # Try re-login with stored credentials
-            self.tray_icon.login_window.load_encrypted_credentials()
-            self.tray_icon.login_window.attempt_basic_login()
+
+            self.login_window = LoginWindow(self.tray_icon)
+            self.login_window.load_encrypted_credentials()
+            self.login_window.attempt_basic_login()
         except Exception as e:
             self.tray_icon.showMessage(
                 "Re-authentication Failed",
@@ -511,12 +513,13 @@ class EmailClientHandler:
         global account, logged_in
         now = datetime.now()
         current_date = QDate.currentDate()
-        if not self.is_account_valid():
-            self.handle_reauthentication()
-            return
-        if self.last_daily_run == current_date:
-            return
+
         if now.hour == self.tray_icon.schedule_hour and 0 <= now.minute < 60:
+            if not self.is_account_valid():
+                self.handle_reauthentication()
+                return
+            if self.last_daily_run == current_date:
+                return
             self.last_daily_run = current_date
             self.process_attachments()
             time.sleep(60)
