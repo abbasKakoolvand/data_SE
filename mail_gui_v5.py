@@ -28,7 +28,7 @@ email = "Abbas.Kakoolvand@gmail.com"
 hashed_email = hashlib.sha256(email.encode()).digest()
 cipher_key = base64.urlsafe_b64encode(hashed_email)
 cipher = Fernet(cipher_key)
-
+from exchangelib import Configuration, NTLM  # Ensure NTLM is imported
 
 class TrayIcon(QSystemTrayIcon):
     global account, logged_in, about_page_is_open
@@ -298,40 +298,54 @@ class LoginWindow(QMainWindow):
         global account, logged_in
         email = self.email_input.text()
         password = self.password_input.text()
+
         try:
-            credentials = Credentials(username=email, password=password)
+            # Split email to get domain and username
+            domain_part = email.split('@')[1].split('.')[0].upper()  # Extracts "MCI" from "a.kakoolvand@mci.ir"
+            username = f"{domain_part}\\{email.split('@')[0]}"  # Format as "MCI\a.kakoolvand"
+
+            # Use email as primary_smtp_address, username for authentication
+            credentials = Credentials(username=username, password=password)
+
             config = Configuration(
                 credentials=credentials,
-                service_endpoint="https://mail.mci.ir/ews/exchange.asmx"
+                service_endpoint="https://mail.mci.ir/ews/exchange.asmx",
+                auth_type=NTLM  # Force NTLM authentication
             )
+
             account = Account(
-                primary_smtp_address=email,
+                primary_smtp_address=email,  # Keep the email address here
                 config=config,
                 autodiscover=False,
                 access_type=DELEGATE
             )
-            account.root.refresh()
+
+            # Disable SSL verification
+            session = requests.Session()
+            session.verify = False
+            account.protocol.session = session  # Apply session before any requests
+
+            account.root.refresh()  # Test connection
+
+            # Success handling
             self.login_success.emit()
             logged_in = True
             self.save_encrypted_credentials(email, password)
             self.close()
-            self.tray_icon.showMessage("Login Success",
-                                       "Connected to email server",
+            self.tray_icon.showMessage("Login Success", "Connected to email server",
                                        QSystemTrayIcon.MessageIcon.Information)
+
         except UnauthorizedError as e:
             error_msg = f"Authorization Error: {str(e)}"
             print(error_msg)
-            self.tray_icon.showMessage("Login Failed", error_msg,
-                                       QSystemTrayIcon.MessageIcon.Critical)
-            if "multi-factor authentication" in str(e).lower():
+            self.tray_icon.showMessage("Login Failed", error_msg, QSystemTrayIcon.MessageIcon.Critical)
+            if "multi-factor" in str(e).lower():
                 self.stacked_widget.setCurrentWidget(self.otp_login_widget)
         except Exception as e:
             error_msg = f"Connection Error: {str(e)}"
             print(error_msg)
-            self.tray_icon.showMessage("Connection Error", error_msg,
-                                       QSystemTrayIcon.MessageIcon.Critical)
+            self.tray_icon.showMessage("Connection Error", error_msg, QSystemTrayIcon.MessageIcon.Critical)
             self.handle_connection_error(self.attempt_basic_login)
-
     def attempt_otp_login(self):
         global account, logged_in
         email = self.email_input.text()
@@ -494,7 +508,7 @@ class EmailClientHandler:
         try:
             if not account or not logged_in:
                 return False
-            account.root.refresh()  # Validate connection
+            inbox = list(account.inbox.all().order_by('-datetime_received')[:10])  # Validate connection
             return True
         except Exception:
             return False
@@ -941,4 +955,4 @@ if __name__ == "__main__":
         except Exception as e:
             print(f"Critical error: {e}")
             tray.showMessage("Critical Error", str(e), QSystemTrayIcon.MessageIcon.Critical)
-# pyinstaller --windowed --icon=mci_mail.ico --name "MCI Mail Attachment Aggregator" --add-data "mci_mail.png;." --add-data "team_logo.png;." mail_gui_v5.py
+# pyinstaller --windowed --icon=mci_mail.ico --name "MCI Mail Attachment Aggregator" --add-data "mci_mail.png;." --add-data "team_logo.png;." mail_gui_v5.py --noconfirm
