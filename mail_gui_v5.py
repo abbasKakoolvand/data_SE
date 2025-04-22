@@ -30,6 +30,7 @@ cipher_key = base64.urlsafe_b64encode(hashed_email)
 cipher = Fernet(cipher_key)
 from exchangelib import Configuration, NTLM  # Ensure NTLM is imported
 
+
 class TrayIcon(QSystemTrayIcon):
     global account, logged_in, about_page_is_open
     print(f"account:{account}, logged_in:{logged_in}")
@@ -346,6 +347,7 @@ class LoginWindow(QMainWindow):
             print(error_msg)
             self.tray_icon.showMessage("Connection Error", error_msg, QSystemTrayIcon.MessageIcon.Critical)
             self.handle_connection_error(self.attempt_basic_login)
+
     def attempt_otp_login(self):
         global account, logged_in
         email = self.email_input.text()
@@ -478,6 +480,7 @@ class AboutTeamDialog(QDialog):
 
 class EmailClientHandler:
     global account, logged_in
+
     def __init__(self, tray_icon):
         self.tray_icon = tray_icon
         self.progress_dialog = None  # Progress dialog instance
